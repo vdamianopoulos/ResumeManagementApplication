@@ -1,0 +1,130 @@
+﻿@page "/candidates"
+<PageTitle>Candidate List</PageTitle>
+
+@inject ICandidateService candidateService
+@inject IDegreeService degreeService
+@inject NavigationManager NavigationManager
+
+<h1>Candidate List</h1>
+
+<button class="btn btn-primary" @onclick="@(() => AddCandidate())">Add new Candidate</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Last Name</th>
+            <th>First Name</th>
+            <th>Mobile</th>
+            <th>Email</th>
+            <th>Degree Name</th>
+            <th>Resume Document</th>
+            <th>Creation Time</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (CandidateList == null || !CandidateList.Any())
+        {
+            <tr><td colspan="6">No data yet ...</td></tr>
+        }
+        else
+        {
+            @foreach (var Candidate in CandidateList)
+            {
+                <tr>
+                    <td>@Candidate.LastName</td>
+                    <td>@Candidate.FirstName</td>
+                    <td>@Candidate.Mobile</td>
+                    <td>@Candidate.Email</td>
+                    <td>
+                        @(degrees.FirstOrDefault(d => d.Id == Candidate.DegreeId)?.Name ?? "None")
+                    </td>
+                    @* 
+                    <td>
+                         <button @onclick="@(async () => await DownloadFile(Candidate.Id))">Download File</button>
+                    </td>
+                    *@
+                    <td>@Candidate.CreationTime</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" @onclick="@(() => EditCandidate(Candidate.Id))">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="@(async () => await DeleteCandidate(Candidate.Id, string.Join(" - ", Candidate.LastName, Candidate.FirstName)))">Delete</button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Candidate> CandidateList = new();
+    private List<Degree> degrees = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        CandidateList = await candidateService.GetAllAsync();
+        var results = await degreeService.GetByIdsAsync(CandidateList.Select(x => (int)x.DegreeId));
+        degrees.AddRange(results ?? new());
+    }
+
+    private void AddCandidate()
+    {
+        NavigationManager.NavigateTo($"/AddCandidate");
+    }
+
+    private void EditCandidate(int CandidateId)
+    {
+        NavigationManager.NavigateTo($"/EditCandidate/{CandidateId}");
+    }
+
+    private async Task<bool> DeleteCandidate(int candidateId, string candidateName)
+    {
+        if (await ConfirmAsync($"Are you sure you want to delete {candidateName}?"))
+        {
+            var success = await candidateService.DeleteByIdAsync(candidateId);
+            if (!success)
+            {
+                await ShowMessageAsync("Operation failed.");
+                return false;
+            }
+
+            await UpdateModel();
+            return true;
+        }
+        return false;
+    }
+
+    // private async Task DownloadFile(int id)
+    // {
+    //     try
+    //     {
+    //         var candidate = CandidateList.Find(x => x.Id == id);
+    //         if (candidate == null)
+    //             return;
+
+    //         var filename = string.Join('_', candidate.LastName, candidate.FirstName, "resume", ".txt");
+
+    //         string base64Data = Convert.ToBase64String(candidate.CV);
+    //         await js.InvokeVoidAsync("downloadBase64Content", base64Data, filename);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine("Error generating file: " + ex.Message);
+    //     }
+    // }
+
+    private async Task<bool> ConfirmAsync(string message)
+    {
+        return await JSRuntime.InvokeAsync<bool>("confirm", message);
+    }
+
+    private async Task ShowMessageAsync(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+    private async Task UpdateModel()
+    {
+        CandidateList = await candidateService.GetAllAsync();
+    }
+}
+

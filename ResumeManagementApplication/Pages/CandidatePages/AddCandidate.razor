@@ -1,0 +1,166 @@
+﻿@page "/addCandidate"
+<PageTitle>Add Candidate</PageTitle>
+
+@inject ICandidateService candidateService
+@inject IDegreeService degreeService
+@inject NavigationManager NavigationManager
+
+<link rel="stylesheet" href="@($"{NavigationManager.BaseUri}wwwroot/validation.css")" />
+
+<h1>Add Candidate</h1>
+
+<form @onsubmit="@(async () => await SaveCandidate())">
+    <div class="form-group">
+        <label for="id">Id:</label>
+        <label>Will automatically take a value</label>
+    </div>
+    <div class="form-group">
+        <label for="lastName">Last Name:</label>
+        <input type="text" class="form-control" id="lastName" name="lastName" @bind="candidate.LastName" required>
+    </div>
+    <div class="form-group">
+        <label for="firstName">First Name:</label>
+        <input type="text" class="form-control" id="firstName" name="firstName" @bind="candidate.FirstName" required>
+    </div>
+    <div class="form-group">
+        <label for="mobile">Mobile:</label>
+        <input type="text" class="form-control" id="mobile" name="mobile" @bind="candidate.Mobile" required>
+    </div>
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" class="form-control" id="email" name="email" @bind="candidate.Email" required>
+    </div>
+    <div class="form-group">
+        <label for="degreeId">Degree:</label>
+        @if (!degrees.Any())
+        {
+            <label for="id">Could not fetch degrees.</label>
+        }
+        else
+        {
+            <select class="form-control" id="degreeId" name="degreeId" @bind="candidate.DegreeId">
+                <option value="">Select Degree</option>
+                @foreach (var degree in degrees)
+                {
+                    <option value="@degree.Id">@degree.Name</option>
+                }
+            </select>
+        }
+    </div>
+    <div class="form-group spaced-div">
+        <label for="cv">Upload CV:</label>
+        <InputFile OnChange="UploadDocument" />
+    </div>
+    <div class="form-group">
+        <label for="creationDate">Creation Date:</label>
+        <label>Will automatically take a value</label>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+@code {
+    private Candidate candidate = new();
+    private List<Degree> degrees = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        degrees = await degreeService.GetAllAsync();
+    }
+
+    public async Task UploadDocument(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            if (e.File != null)
+            {
+                var buffer = new byte[e.File.Size];
+                await using var stream = e.File.OpenReadStream();
+
+                await stream.ReadAsync(buffer, 0, (int)e.File.Size);
+                candidate.CV = buffer;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error uploading file: " + ex.Message);
+        }
+    }
+
+    private async Task<bool> SaveCandidate()
+    {
+        var isModelValid = await IsValid();
+        if (!isModelValid)
+        {
+            await ShowMessageAsync("Operation failed.");
+            return false;
+        }
+
+        var success = await candidateService.SaveAsync(candidate);
+        if (success)
+        {
+            NavigationManager.NavigateTo("/Candidates");
+            return true;
+        }
+        else
+        {
+            await ShowMessageAsync("Operation failed.");
+            return false;
+        }
+    }
+
+    private async Task ShowMessageAsync(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+
+    private async Task<bool> IsValid()
+    {
+        var validations = new List<Task<bool>>()
+        {
+            ValidateFirstName(),
+            ValidateLastName(),
+            ValidateMobile(),
+            ValidateEmail()
+        };
+
+        var results = await Task.WhenAll(validations);
+        return results.All(x=>x);
+    }
+
+    private async Task<bool> ValidateFirstName()
+    {
+        if (validator.IsValidFirstName(candidate))
+            return true;
+
+        await ShowMessageAsync("Invalid first name.");
+        return false;
+    }
+    private async Task<bool> ValidateLastName()
+    {
+        if (validator.IsValidLastName(candidate))
+            return true;
+
+        await ShowMessageAsync("Invalid last name.");
+        return false;
+    }
+
+    private async Task<bool> ValidateMobile()
+    {
+        if (validator.IsValidMobile(candidate))
+            return true;
+
+        await ShowMessageAsync("Invalid mobile.");
+        return false;
+    }
+
+    private async Task<bool> ValidateEmail()
+    {
+        if (validator.IsValidEmail(candidate))
+            return true;
+
+        await ShowMessageAsync("Invalid email.");
+        return false;
+    }
+}
+

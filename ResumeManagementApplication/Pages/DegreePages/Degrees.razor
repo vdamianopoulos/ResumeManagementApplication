@@ -1,0 +1,113 @@
+﻿@page "/degrees"
+<PageTitle>Degrees List</PageTitle>
+
+@inject ICandidateService candidateService
+@inject IDegreeService degreeService
+@inject NavigationManager NavigationManager
+
+<h1>Degrees List</h1>
+
+<button class="btn btn-primary" @onclick="@(() => AddDegree())">Add new Degree</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Creation Time</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (DegreeList == null || !DegreeList.Any())
+        {
+            <tr><td colspan="3">No data yet ...</td></tr>
+        }
+        else
+        {
+            @foreach (var Degree in DegreeList)
+            {
+                <tr>
+                    <td>@Degree.Id</td>
+                    <td>@Degree.Name</td>
+                    <td>@Degree.CreationTime</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" @onclick="@(() => EditDegree(Degree.Id))">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="@(async () => await DeleteDegree(Degree.Id, Degree.Name))">Delete</button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<button class="btn btn-sm btn-danger" @onclick="@(async () => await RemoveUnusedDegrees())">Remove unused degrees</button>
+
+
+@code {
+    private List<Degree> DegreeList = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DegreeList = await degreeService.GetAllAsync();
+    }
+
+    private void AddDegree()
+    {
+        NavigationManager.NavigateTo($"/AddDegree");
+    }
+
+    private void EditDegree(int degreeId)
+    {
+        NavigationManager.NavigateTo($"/EditDegree/{degreeId}");
+    }
+
+    private async Task<bool> DeleteDegree(int degreeId, string degreeName)
+    {
+        if (await ConfirmAsync($"Are you sure you want to delete {degreeName}?"))
+        {
+            var success = await degreeService.DeleteByIdAsync(degreeId);
+            if (!success)
+            {
+                await ShowMessageAsync("Operation failed.");
+                return false;
+            }
+
+            await UpdateModel();
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<bool> RemoveUnusedDegrees()
+    {
+        if (await ConfirmAsync($"Are you sure you want to delete the unused degrees?"))
+        {
+            var success = await degreeService.RemoveUnusedDegreesAsync();
+            if (!success)
+            {
+                await ShowMessageAsync("Operation failed.");
+                return false;
+            }
+
+            await UpdateModel();
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<bool> ConfirmAsync(string message)
+    {
+        return await JSRuntime.InvokeAsync<bool>("confirm", message);
+    }
+
+    private async Task ShowMessageAsync(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+    private async Task UpdateModel()
+    {
+        DegreeList = await degreeService.GetAllAsync();
+    }
+}

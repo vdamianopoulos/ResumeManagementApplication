@@ -1,0 +1,27 @@
+﻿body {
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: .375rem .75rem;
+        border: 1px solid #ced4da;
+        border-radius: .25rem;
+        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    }
+
+        .form-control.is-invalid {
+            border-color: #dc3545; /* Red color for invalid input */
+        }
+
+    .validation-message {
+        color: #dc3545; /* Red color for error messages */
+        display: none; /* Initially hidden */
+    }
+
+    .form-group.has-error .validation-message {
+        display: block; /* Show error message when form-group has error */
+    }
+}

@@ -1,0 +1,6 @@
+@DataPersistency_HostAddress = http://localhost:5227
+
+GET {{DataPersistency_HostAddress}}/
+Accept: application/json
+
+###
